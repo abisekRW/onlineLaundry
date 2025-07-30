@@ -1,6 +1,6 @@
 import React from 'react';
 import { LaundryRequest, STATUS_LABELS } from '../../types';
-import { Calendar, Package, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Package, CheckCircle, XCircle, Phone, MapPin, CreditCard, Wallet } from 'lucide-react';
 
 interface OrderHistoryProps {
   orders: LaundryRequest[];
@@ -21,6 +21,15 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getPaymentIcon = (paymentMethod?: string) => {
+    switch (paymentMethod) {
+      case 'cash': return <Wallet className="w-4 h-4" />;
+      case 'card': return <CreditCard className="w-4 h-4" />;
+      case 'upi': return <Phone className="w-4 h-4" />;
+      default: return <Wallet className="w-4 h-4" />;
     }
   };
 
@@ -61,6 +70,10 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
                   )
                 )}
               </div>
+              <div className="mt-2 flex items-center text-sm text-gray-600">
+                <Phone className="w-4 h-4 mr-1" />
+                {order.clientPhone}
+              </div>
             </div>
 
             <div className="space-y-1 text-sm text-gray-600">
@@ -74,10 +87,20 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
                   Delivered: {order.timestamps.deliveredAt.toLocaleDateString()}
                 </div>
               )}
+              <div className="flex items-start mt-2">
+                <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="text-xs break-words">{order.deliveryAddress}</span>
+              </div>
             </div>
 
             <div className="text-right">
               <div className="text-lg font-bold text-gray-900">₹{order.totalCost}</div>
+              <div className="flex items-center justify-end text-sm text-gray-600 mt-1">
+                {getPaymentIcon(order.paymentMethod)}
+                <span className="ml-1">
+                  {order.paymentMethod === 'cash' ? 'COD' : order.paymentMethod?.toUpperCase()}
+                </span>
+              </div>
               {order.notes && (
                 <p className="text-xs text-gray-500 mt-1">{order.notes}</p>
               )}

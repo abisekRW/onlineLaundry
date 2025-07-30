@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LaundryRequest, OrderStatus, ORDER_STATUS_FLOW, STATUS_LABELS } from '../../types';
-import { Calendar, User, Package, ChevronRight, MessageSquare, Check, X } from 'lucide-react';
+import { Calendar, User, Package, ChevronRight, MessageSquare, Check, X, Phone, MapPin, CreditCard, Wallet } from 'lucide-react';
 
 interface RequestCardProps {
   request: LaundryRequest;
@@ -17,9 +17,6 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
       case 'placed': return 'bg-yellow-100 text-yellow-800';
       case 'accepted': return 'bg-blue-100 text-blue-800';
       case 'picked-up': return 'bg-purple-100 text-purple-800';
-      case 'washing': return 'bg-blue-100 text-blue-800';
-      case 'ironing': return 'bg-orange-100 text-orange-800';
-      case 'packing': return 'bg-indigo-100 text-indigo-800';
       case 'out-for-delivery': return 'bg-green-100 text-green-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
@@ -50,6 +47,24 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
     }
   };
 
+  const getPaymentIcon = () => {
+    switch (request.paymentMethod) {
+      case 'cash': return <Wallet className="w-4 h-4" />;
+      case 'card': return <CreditCard className="w-4 h-4" />;
+      case 'upi': return <Phone className="w-4 h-4" />;
+      default: return <Wallet className="w-4 h-4" />;
+    }
+  };
+
+  const getPaymentLabel = () => {
+    switch (request.paymentMethod) {
+      case 'cash': return 'Cash on Delivery';
+      case 'card': return 'Card Payment';
+      case 'upi': return 'UPI Payment';
+      default: return 'Cash on Delivery';
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="p-6">
@@ -64,6 +79,10 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
               <User className="w-4 h-4 text-gray-400 mr-1" />
               <span className="text-sm font-medium text-gray-900">{request.clientName}</span>
             </div>
+            <div className="flex items-center">
+              <Phone className="w-4 h-4 text-gray-400 mr-1" />
+              <span className="text-sm text-gray-600">{request.clientPhone}</span>
+            </div>
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(request.status)}`}>
             {STATUS_LABELS[request.status]}
@@ -71,7 +90,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
         </div>
 
         {/* Order Details */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">{request.service}</h3>
             <div className="space-y-1 text-sm text-gray-600">
@@ -105,11 +124,28 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
             )}
           </div>
 
+          <div className="space-y-2 text-sm text-gray-600">
+            <div className="flex items-start">
+              <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
+              <span className="break-words">{request.deliveryAddress}</span>
+            </div>
+            <div className="flex items-center">
+              {getPaymentIcon()}
+              <span className="ml-2">{getPaymentLabel()}</span>
+            </div>
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              request.paymentStatus === 'completed' ? 'bg-green-100 text-green-800' :
+              request.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {request.paymentStatus === 'completed' ? 'Paid' : request.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
+            </div>
+          </div>
+
           <div className="text-right">
             <div className="text-2xl font-bold text-gray-900 mb-2">₹{request.totalCost}</div>
             <button
               onClick={() => setShowNotes(!showNotes)}
-              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors"
+              className="inline-flex items-center text-sm text-blue-600 hover:text-blue-700 transition-colors mb-2"
             >
               <MessageSquare className="w-4 h-4 mr-1" />
               {request.notes ? 'View Notes' : 'Add Notes'}

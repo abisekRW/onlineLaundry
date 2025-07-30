@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { LaundryRequest, OrderStatus, ORDER_STATUS_FLOW } from '../../types';
+import { LaundryRequest, OrderStatus, } from '../../types';
 import { Package, Users, TrendingUp, Clock, LogOut } from 'lucide-react';
 import RequestCard from './RequestCard';
 
@@ -24,9 +25,6 @@ const AdminDashboard: React.FC = () => {
           placedAt: doc.data().timestamps?.placedAt?.toDate(),
           acceptedAt: doc.data().timestamps?.acceptedAt?.toDate(),
           pickedUpAt: doc.data().timestamps?.pickedUpAt?.toDate(),
-          washingAt: doc.data().timestamps?.washingAt?.toDate(),
-          ironingAt: doc.data().timestamps?.ironingAt?.toDate(),
-          packingAt: doc.data().timestamps?.packingAt?.toDate(),
           outForDeliveryAt: doc.data().timestamps?.outForDeliveryAt?.toDate(),
           deliveredAt: doc.data().timestamps?.deliveredAt?.toDate(),
         }
@@ -41,6 +39,7 @@ const AdminDashboard: React.FC = () => {
 
   const handleStatusUpdate = async (requestId: string, newStatus: OrderStatus, notes?: string) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: any = {
         status: newStatus,
         [`timestamps.${getTimestampKey(newStatus)}`]: new Date()
@@ -61,12 +60,10 @@ const AdminDashboard: React.FC = () => {
       'placed': 'placedAt',
       'accepted': 'acceptedAt',
       'picked-up': 'pickedUpAt',
-      'washing': 'washingAt',
-      'ironing': 'ironingAt',
-      'packing': 'packingAt',
       'out-for-delivery': 'outForDeliveryAt',
       'delivered': 'deliveredAt',
-      'rejected': 'rejectedAt'
+      'rejected': 'rejectedAt',
+
     };
     return mapping[status] || 'updatedAt';
   };

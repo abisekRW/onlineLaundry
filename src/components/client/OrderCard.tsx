@@ -1,12 +1,25 @@
 import React from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 import { LaundryRequest, ORDER_STATUS_FLOW, STATUS_LABELS } from '../../types';
-import { Calendar, Package, Clock, MapPin } from 'lucide-react';
+import { Calendar, Package, Clock, MapPin, Phone, CreditCard, Wallet, CheckCircle } from 'lucide-react';
 
 interface OrderCardProps {
   order: LaundryRequest;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
+  const handleMarkAsReceived = async () => {
+    try {
+      await updateDoc(doc(db, 'requests', order.id), {
+        status: 'delivered',
+        'timestamps.deliveredAt': new Date()
+      });
+    } catch (error) {
+      console.error('Error marking order as received:', error);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'placed': return 'bg-yellow-100 text-yellow-800';
@@ -25,6 +38,24 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
   const currentStatusIndex = ORDER_STATUS_FLOW.indexOf(order.status);
   const progressPercentage = ((currentStatusIndex + 1) / ORDER_STATUS_FLOW.length) * 100;
 
+  const getPaymentIcon = () => {
+    switch (order.paymentMethod) {
+      case 'cash': return <Wallet className="w-4 h-4" />;
+      case 'card': return <CreditCard className="w-4 h-4" />;
+      case 'upi': return <Phone className="w-4 h-4" />;
+      default: return <Wallet className="w-4 h-4" />;
+    }
+  };
+
+  const getPaymentLabel = () => {
+    switch (order.paymentMethod) {
+      case 'cash': return 'Cash on Delivery';
+      case 'card': return 'Card Payment';
+      case 'upi': return 'UPI Payment';
+      default: return 'Cash on Delivery';
+    }
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
       <div className="p-6">
@@ -40,7 +71,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         </div>
 
         {/* Order Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">{order.service}</h3>
             <div className="space-y-1 text-sm text-gray-600">
@@ -54,6 +85,7 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
               )}
             </div>
           </div>
+          
           <div className="space-y-2">
             <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-4 h-4 mr-2" />
@@ -63,8 +95,25 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
               <Clock className="w-4 h-4 mr-2" />
               {order.timestamps.placedAt.toLocaleTimeString()}
             </div>
+            <div className="flex items-center text-sm text-gray-600">
+              <Phone className="w-4 h-4 mr-2" />
+              {order.clientPhone}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
             <div className="text-lg font-bold text-gray-900">
               Total: ₹{order.totalCost}
+            </div>
+            <div className="flex items-center text-sm text-gray-600">
+              {getPaymentIcon()}
+              <span className="ml-2">{getPaymentLabel()}</span>
+            </div>
+            <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              order.paymentStatus === 'completed' ? 'bg-green-100 text-green-800' :
+              order.paymentStatus === 'failed' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+            }`}>
+              {order.paymentStatus === 'completed' ? 'Paid' : order.paymentStatus === 'failed' ? 'Payment Failed' : 'Payment Pending'}
             </div>
           </div>
         </div>
@@ -107,11 +156,46 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
         </div>
 
         {/* Notes */}
+        {order.deliveryAddress && (
+          <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+            <div className="flex items-start">
+              <MapPin className="w-4 h-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-blue-900 mb-1">Delivery Address:</p>
+                <p className="text-sm text-blue-800">{order.deliveryAddress}</p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {order.notes && (
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">
               <strong>Notes:</strong> {order.notes}
             </p>
+          </div>
+        )}
+
+        {/* Delivery Confirmation Button */}
+        {order.status === 'out-for-delivery' && (
+          <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-green-900 mb-1">
+                  Order Out for Delivery
+                </h4>
+                <p className="text-sm text-green-700">
+                  Please confirm once you receive your laundry
+                </p>
+              </div>
+              <button
+                onClick={handleMarkAsReceived}
+                className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-200 transition-all"
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Mark as Received
+              </button>
+            </div>
           </div>
         )}
       </div>

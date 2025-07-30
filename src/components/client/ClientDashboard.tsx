@@ -44,9 +44,6 @@ const ClientDashboard: React.FC = () => {
           placedAt: doc.data().timestamps?.placedAt?.toDate(),
           acceptedAt: doc.data().timestamps?.acceptedAt?.toDate(),
           pickedUpAt: doc.data().timestamps?.pickedUpAt?.toDate(),
-          washingAt: doc.data().timestamps?.washingAt?.toDate(),
-          ironingAt: doc.data().timestamps?.ironingAt?.toDate(),
-          packingAt: doc.data().timestamps?.packingAt?.toDate(),
           outForDeliveryAt: doc.data().timestamps?.outForDeliveryAt?.toDate(),
           deliveredAt: doc.data().timestamps?.deliveredAt?.toDate(),
         }
@@ -63,19 +60,24 @@ const ClientDashboard: React.FC = () => {
     return () => unsubscribe();
   }, [currentUser]);
 
-  const handleCreateOrder = async (service: Service, clothes: ClothQuantity, totalCost: number) => {
+  const handleCreateOrder = async (service: Service, clothes: ClothQuantity, totalCost: number, phone: string, address: string, paymentMethod: string) => {
     if (!currentUser) return;
 
     try {
       await addDoc(collection(db, 'requests'), {
         clientId: currentUser.id,
         clientName: currentUser.name,
+        clientPhone: phone,
+        deliveryAddress: address,
         service: service.name,
         clothes,
         totalCost,
         status: 'placed',
+        paymentStatus: paymentMethod === 'cash' ? 'pending' : 'completed',
+        paymentMethod,
         timestamps: {
-          placedAt: new Date()
+          placedAt: new Date(),
+          ...(paymentMethod !== 'cash' && { paidAt: new Date() })
         }
       });
       setShowNewOrder(false);
