@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState } from 'react';
 import { X, Plus, Minus, MapPin, Phone, CreditCard, Wallet } from 'lucide-react';
 import { Service, ClothQuantity } from '../../types';
+import PaymentPage from './PaymentPage.tsx';
 
 interface ServiceSelectorProps {
   services: Service[];
@@ -20,7 +22,8 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, onCreateOrd
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi'>('cash');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessing] = useState(false);
+  const [showPaymentPage, setShowPaymentPage] = useState(false);
 
   const updateQuantity = (type: keyof ClothQuantity, change: number) => {
     setQuantities(prev => ({
@@ -62,15 +65,15 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, onCreateOrd
 
   const handleSubmit = async () => {
     if (selectedService && getTotalItems() > 0 && phone && address) {
-      setIsProcessing(true);
-      
-      // Simulate payment processing
-      if (paymentMethod !== 'cash') {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
+      setShowPaymentPage(true);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    if (selectedService) {
+      // For all payment methods, show payment page first
       onCreateOrder(selectedService, quantities, calculateTotal(), phone, address, paymentMethod);
-      setIsProcessing(false);
+      setShowPaymentPage(false);
     }
   };
 
@@ -251,7 +254,7 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, onCreateOrd
                 ].map(({ key, label, icon: Icon, desc }) => (
                   <div
                     key={key}
-                    onClick={() => setPaymentMethod(key as never)}
+                    onClick={() => setPaymentMethod(key as any)}
                     className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
                       paymentMethod === key
                         ? 'border-blue-500 bg-blue-50'
@@ -340,14 +343,24 @@ const ServiceSelector: React.FC<ServiceSelectorProps> = ({ services, onCreateOrd
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isProcessing}
+                disabled={isProcessing || !selectedService || getTotalItems() === 0 || !phone || !address}
                 className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 text-white py-3 rounded-lg font-medium hover:from-green-700 hover:to-blue-700 focus:ring-4 focus:ring-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isProcessing ? 'Processing...' : `Place Order - ₹${calculateTotal()}`}
+                Place Order - ₹{calculateTotal()}
               </button>
             )}
           </div>
         </div>
+
+        {/* Payment Page Modal */}
+        {showPaymentPage && selectedService && (
+          <PaymentPage
+            amount={calculateTotal()}
+            paymentMethod={paymentMethod}
+            onPaymentSuccess={handlePaymentSuccess}
+            onClose={() => setShowPaymentPage(false)}
+          />
+        )}
       </div>
     </div>
   );

@@ -2,22 +2,33 @@ import React from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { LaundryRequest, ORDER_STATUS_FLOW, STATUS_LABELS } from '../../types';
-import { Calendar, Package, Clock, MapPin, Phone, CreditCard, Wallet, CheckCircle } from 'lucide-react';
+import { Calendar, Package, Clock, MapPin, Phone, CreditCard, Wallet, CheckCircle, DollarSign } from 'lucide-react';
+import PaymentPage from './PaymentPage.tsx';
 
 interface OrderCardProps {
   order: LaundryRequest;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
+  const [showPaymentPage, setShowPaymentPage] = React.useState(false);
+
   const handleMarkAsReceived = async () => {
     try {
       await updateDoc(doc(db, 'requests', order.id), {
-        status: 'delivered',
-        'timestamps.deliveredAt': new Date()
+        status: 'client-confirmed',
+        'timestamps.clientConfirmedAt': new Date()
       });
     } catch (error) {
       console.error('Error marking order as received:', error);
     }
+  };
+
+  const handlePaymentSuccess = async () => {
+    await updateDoc(doc(db, 'requests', order.id), {
+      paymentStatus: 'completed',
+      'timestamps.paidAt': new Date()
+    });
+    setShowPaymentPage(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -25,12 +36,10 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
       case 'placed': return 'bg-yellow-100 text-yellow-800';
       case 'accepted': return 'bg-blue-100 text-blue-800';
       case 'picked-up': return 'bg-purple-100 text-purple-800';
-      case 'washing': return 'bg-blue-100 text-blue-800';
-      case 'ironing': return 'bg-orange-100 text-orange-800';
-      case 'packing': return 'bg-indigo-100 text-indigo-800';
       case 'out-for-delivery': return 'bg-green-100 text-green-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'client-confirmed': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -176,8 +185,30 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
           </div>
         )}
 
-        {/* Delivery Confirmation Button */}
-        {order.status === 'out-for-delivery' && (
+        {/* Payment and Delivery Confirmation */}
+        {order.status === 'out-for-delivery' && order.paymentMethod === 'cash' && order.paymentStatus === 'pending' && (
+          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-medium text-yellow-900 mb-1">
+                  Payment Required
+                </h4>
+                <p className="text-sm text-yellow-700">
+                  Please complete your cash payment of ₹{order.totalCost} to proceed
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPaymentPage(true)}
+                className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white font-medium rounded-lg hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Pay Now
+              </button>
+            </div>
+          </div>
+        )}
+
+        {order.status === 'out-for-delivery' && order.paymentStatus === 'completed' && (
           <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
             <div className="flex items-center justify-between">
               <div>
@@ -198,7 +229,31 @@ const OrderCard: React.FC<OrderCardProps> = ({ order }) => {
             </div>
           </div>
         )}
+
+        {order.status === 'client-confirmed' && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center">
+              <CheckCircle className="w-5 h-5 text-blue-600 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-blue-900">Order Received</h4>
+                <p className="text-sm text-blue-700">
+                  You have confirmed receipt. Waiting for admin to mark as delivered.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Payment Page Modal */}
+      {showPaymentPage && (
+        <PaymentPage
+          amount={order.totalCost}
+          paymentMethod={order.paymentMethod as 'cash' | 'card' | 'upi'}
+          onPaymentSuccess={handlePaymentSuccess}
+          onClose={() => setShowPaymentPage(false)}
+        />
+      )}
     </div>
   );
 };

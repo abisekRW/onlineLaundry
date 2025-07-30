@@ -39,7 +39,6 @@ const AdminDashboard: React.FC = () => {
 
   const handleStatusUpdate = async (requestId: string, newStatus: OrderStatus, notes?: string) => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: any = {
         status: newStatus,
         [`timestamps.${getTimestampKey(newStatus)}`]: new Date()
@@ -63,7 +62,7 @@ const AdminDashboard: React.FC = () => {
       'out-for-delivery': 'outForDeliveryAt',
       'delivered': 'deliveredAt',
       'rejected': 'rejectedAt',
-
+      'client-confirmed': ''
     };
     return mapping[status] || 'updatedAt';
   };

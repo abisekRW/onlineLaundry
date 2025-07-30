@@ -50,8 +50,9 @@ export interface LaundryRequest {
 export type OrderStatus = 
   | 'placed' 
   | 'accepted' 
-  | 'picked-up' 
+  | 'picked-up'  
   | 'out-for-delivery' 
+  | 'client-confirmed'
   | 'delivered' 
   | 'rejected';
 
@@ -60,6 +61,7 @@ export const ORDER_STATUS_FLOW: OrderStatus[] = [
   'accepted', 
   'picked-up',
   'out-for-delivery',
+  'client-confirmed',
   'delivered'
 ];
 
@@ -68,6 +70,7 @@ export const STATUS_LABELS = {
   'accepted': 'Order Accepted',
   'picked-up': 'Picked Up',
   'out-for-delivery': 'Out for Delivery',
+  'client-confirmed': 'Client Confirmed',
   'delivered': 'Delivered',
   'rejected': 'Rejected'
 };

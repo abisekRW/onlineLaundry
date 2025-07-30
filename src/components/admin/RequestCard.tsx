@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LaundryRequest, OrderStatus, ORDER_STATUS_FLOW, STATUS_LABELS } from '../../types';
-import { Calendar, User, Package, ChevronRight, MessageSquare, Check, X, Phone, MapPin, CreditCard, Wallet } from 'lucide-react';
+import { Calendar, User, Package, ChevronRight, MessageSquare, Check, X, Phone, MapPin, CreditCard, Wallet, CheckCircle } from 'lucide-react';
 
 interface RequestCardProps {
   request: LaundryRequest;
@@ -20,6 +20,7 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
       case 'out-for-delivery': return 'bg-green-100 text-green-800';
       case 'delivered': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'client-confirmed': return 'bg-blue-100 text-blue-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -28,6 +29,10 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
     const currentIndex = ORDER_STATUS_FLOW.indexOf(request.status);
     if (currentIndex >= 0 && currentIndex < ORDER_STATUS_FLOW.length - 1) {
       return ORDER_STATUS_FLOW[currentIndex + 1];
+    }
+    // Special case: if client has confirmed, admin can mark as delivered
+    if (request.status === 'client-confirmed') {
+      return 'delivered';
     }
     return null;
   };
@@ -43,6 +48,11 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
   const handleNextStatus = () => {
     const nextStatus = getNextStatus();
     if (nextStatus) {
+      // Special handling for moving to delivered status
+      if (nextStatus === 'delivered' && request.paymentStatus !== 'completed') {
+        // Don't allow moving to delivered if payment is not completed
+        return;
+      }
       handleStatusUpdate(nextStatus);
     }
   };
@@ -195,14 +205,28 @@ const RequestCard: React.FC<RequestCardProps> = ({ request, onStatusUpdate }) =>
           {request.status !== 'placed' && 
            request.status !== 'delivered' && 
            request.status !== 'rejected' && 
+           request.status !== 'client-confirmed' &&
            getNextStatus() && (
+            <>
+              <button
+                onClick={handleNextStatus}
+                disabled={isUpdating}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Move to {STATUS_LABELS[getNextStatus()!]}
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </button>
+            </>
+          )}
+
+          {request.status === 'client-confirmed' && (
             <button
-              onClick={handleNextStatus}
+              onClick={() => handleStatusUpdate('delivered')}
               disabled={isUpdating}
-              className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-2 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Move to {STATUS_LABELS[getNextStatus()!]}
-              <ChevronRight className="w-4 h-4 ml-2" />
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Mark as Delivered
             </button>
           )}
 
