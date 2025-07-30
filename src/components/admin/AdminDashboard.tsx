@@ -1,21 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, doc, updateDoc, query, orderBy } from 'firebase/firestore';
+import { collection, onSnapshot, doc, updateDoc, query, orderBy,
+  getDocs } from 'firebase/firestore';
 import { db } from '../../firebase/config';
 import { useAuth } from '../../context/AuthContext';
-import { LaundryRequest, OrderStatus, } from '../../types';
+import { LaundryRequest, OrderStatus } from '../../types';
 import { Package, Users, TrendingUp, Clock, LogOut } from 'lucide-react';
 import RequestCard from './RequestCard';
 
 const AdminDashboard: React.FC = () => {
   const { currentUser, logout } = useAuth();
   const [requests, setRequests] = useState<LaundryRequest[]>([]);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'completed'>('all');
+  const [reportedOrderIds, setReportedOrderIds] = useState<string[]>([]);
+  const [filter, setFilter] = useState<'all' | 'pending' | 'active' | 'completed' | 'reported'>('all');
   const [loading, setLoading] = useState(true);
 
+  // Fetch all orders
   useEffect(() => {
     const q = query(collection(db, 'requests'), orderBy('timestamps.placedAt', 'desc'));
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const requestsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -29,12 +32,24 @@ const AdminDashboard: React.FC = () => {
           deliveredAt: doc.data().timestamps?.deliveredAt?.toDate(),
         }
       })) as LaundryRequest[];
-      
+
       setRequests(requestsData);
       setLoading(false);
     });
 
     return () => unsubscribe();
+  }, []);
+
+  // Fetch reported order IDs
+  useEffect(() => {
+    const fetchReportedOrders = async () => {
+      const q = query(collection(db, 'reports'));
+      const snapshot = await getDocs(q);
+      const ids = snapshot.docs.map(doc => doc.data().orderId);
+      setReportedOrderIds(ids);
+    };
+
+    fetchReportedOrders();
   }, []);
 
   const handleStatusUpdate = async (requestId: string, newStatus: OrderStatus, notes?: string) => {
@@ -43,10 +58,8 @@ const AdminDashboard: React.FC = () => {
         status: newStatus,
         [`timestamps.${getTimestampKey(newStatus)}`]: new Date()
       };
-      
-      if (notes) {
-        updateData.notes = notes;
-      }
+
+      if (notes) updateData.notes = notes;
 
       await updateDoc(doc(db, 'requests', requestId), updateData);
     } catch (error) {
@@ -72,13 +85,15 @@ const AdminDashboard: React.FC = () => {
       case 'pending':
         return requests.filter(req => req.status === 'placed');
       case 'active':
-        return requests.filter(req => 
+        return requests.filter(req =>
           !['placed', 'delivered', 'rejected'].includes(req.status)
         );
       case 'completed':
-        return requests.filter(req => 
+        return requests.filter(req =>
           ['delivered', 'rejected'].includes(req.status)
         );
+      case 'reported':
+        return requests.filter(req => reportedOrderIds.includes(req.id));
       default:
         return requests;
     }
@@ -87,12 +102,9 @@ const AdminDashboard: React.FC = () => {
   const stats = {
     total: requests.length,
     pending: requests.filter(req => req.status === 'placed').length,
-    active: requests.filter(req => 
-      !['placed', 'delivered', 'rejected'].includes(req.status)
-    ).length,
-    completed: requests.filter(req => 
-      ['delivered', 'rejected'].includes(req.status)
-    ).length,
+    active: requests.filter(req => !['placed', 'delivered', 'rejected'].includes(req.status)).length,
+    completed: requests.filter(req => ['delivered', 'rejected'].includes(req.status)).length,
+    reported: requests.filter(req => reportedOrderIds.includes(req.id)).length,
     revenue: requests
       .filter(req => req.status === 'delivered')
       .reduce((sum, req) => sum + req.totalCost, 0)
@@ -120,7 +132,7 @@ const AdminDashboard: React.FC = () => {
               <span className="text-sm text-gray-600">Welcome, {currentUser?.name}</span>
               <button
                 onClick={logout}
-                className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none transition-colors"
+                className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-500 hover:text-gray-700"
               >
                 <LogOut className="w-4 h-4 mr-1" />
                 Logout
@@ -131,7 +143,7 @@ const AdminDashboard: React.FC = () => {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
+        {/* Tabs */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <div className="flex items-center">
@@ -183,40 +195,40 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-
+      </div>
         {/* Filter Tabs */}
-        <div className="mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              {[
-                { key: 'all', label: 'All Orders', count: stats.total },
-                { key: 'pending', label: 'Pending', count: stats.pending },
-                { key: 'active', label: 'Active', count: stats.active },
-                { key: 'completed', label: 'Completed', count: stats.completed }
-              ].map(({ key, label, count }) => (
-                <button
-                  key={key}
-                  onClick={() => setFilter(key as any)}
-                  className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    filter === key
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  {label} ({count})
-                </button>
-              ))}
-            </nav>
-          </div>
+        <div className="mb-6 mx-8">
+          <div className=" border-gray-200">
+          <nav className="-mb-px flex space-x-8 ml-5">
+            {[
+              { key: 'all', label: 'All Orders', count: stats.total },
+              { key: 'pending', label: 'Pending', count: stats.pending },
+              { key: 'active', label: 'Active', count: stats.active },
+              { key: 'completed', label: 'Completed', count: stats.completed },
+              { key: 'reported', label: 'Reported', count: stats.reported }
+            ].map(({ key, label, count }) => (
+              <button
+                key={key}
+                onClick={() => setFilter(key as any)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  filter === key
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {label} ({count})
+              </button>
+            ))}
+          </nav>
         </div>
 
-        {/* Requests List */}
+        {/* Order Cards */}
         <div className="space-y-6">
           {getFilteredRequests().length === 0 ? (
             <div className="text-center py-12">
               <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-              <p className="text-gray-600">No orders match the current filter</p>
+              <p className="text-gray-600">No orders match the selected filter.</p>
             </div>
           ) : (
             getFilteredRequests().map(request => (

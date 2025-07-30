@@ -1,12 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { LaundryRequest, STATUS_LABELS } from '../../types';
-import { Calendar, Package, CheckCircle, XCircle, Phone, MapPin, CreditCard, Wallet } from 'lucide-react';
+import { Calendar, Package, CheckCircle, XCircle, Phone, MapPin, CreditCard, Wallet, FlagOff
+} from 'lucide-react';
+import { addDoc, collection, Timestamp } from 'firebase/firestore';
+import { db } from '../../firebase/config';
 
 interface OrderHistoryProps {
   orders: LaundryRequest[];
 }
 
 const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
+  const [reportReason, setReportReason] = useState<{ [orderId: string]: string }>({});
+  const [loading, setLoading] = useState(false);
+  const [openReportId, setOpenReportId] = useState<string | null>(null); // Track open report by order ID
+
   const getStatusIcon = (status: string) => {
     if (status === 'delivered') {
       return <CheckCircle className="w-5 h-5 text-green-500" />;
@@ -30,6 +37,30 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
       case 'card': return <CreditCard className="w-4 h-4" />;
       case 'upi': return <Phone className="w-4 h-4" />;
       default: return <Wallet className="w-4 h-4" />;
+    }
+  };
+
+  const handleReportSubmit = async (
+    e: React.FormEvent,
+    orderId: string
+  ) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      await addDoc(collection(db, 'reports'), {
+        orderId,
+        reason: reportReason[orderId],
+        createdAt: Timestamp.now(),
+      });
+
+      setReportReason(prev => ({ ...prev, [orderId]: '' }));
+      setOpenReportId(null);
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Failed to submit report');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -61,7 +92,7 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
             <div>
               <h4 className="font-semibold text-gray-900 mb-1">{order.service}</h4>
               <div className="text-sm text-gray-600 space-y-1">
-                {Object.entries(order.clothes).map(([type, qty]) => 
+                {Object.entries(order.clothes).map(([type, qty]) =>
                   qty > 0 && (
                     <div key={type} className="flex justify-between">
                       <span className="capitalize">{type}s:</span>
@@ -103,6 +134,52 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ orders }) => {
               </div>
               {order.notes && (
                 <p className="text-xs text-gray-500 mt-1">{order.notes}</p>
+              )}
+
+              {/* Report toggle */}
+              <div className="flex justify-start mt-2">
+                <button
+                  className="text-gray-500 text-sm flex items-center gap-1"
+                  onClick={() =>
+                    setOpenReportId(prev => (prev === order.id ? null : order.id))
+                  }
+                >
+                  <FlagOff className="h-4 w-4" />
+                  Report
+                </button>
+              </div>
+
+              {/* Report form (only open for selected order) */}
+              {openReportId === order.id && (
+                <form
+                  className="flex flex-col justify-start items-start gap-2 mb-6 p-4"
+                  onSubmit={(e) => handleReportSubmit(e, order.id)}
+                >
+                  <div>
+                    <textarea
+                      value={reportReason[order.id] || ''}
+                      onChange={(e) =>
+                        setReportReason(prev => ({
+                          ...prev,
+                          [order.id]: e.target.value,
+                        }))
+                      }
+                      placeholder="Your Issue..."
+                      required
+                      className="w-[500px] px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    />
+                  </div>
+
+                  <div>
+                    <button
+                      className="border px-4 bg-green-600 text-white py-1 rounded-md"
+                      type="submit"
+                      disabled={loading}
+                    >
+                      {loading ? 'Submitting...' : 'Submit'}
+                    </button>
+                  </div>
+                </form>
               )}
             </div>
           </div>

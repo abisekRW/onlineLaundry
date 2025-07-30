@@ -174,7 +174,7 @@ const ClientDashboard: React.FC = () => {
         </div>
 
         {/* New Order Button */}
-        <div className="mb-6">
+        <div className="mb-6 flex justify-between">
           <button
             onClick={() => setShowNewOrder(true)}
             className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 focus:ring-4 focus:ring-blue-200 transition-all transform hover:scale-105"
